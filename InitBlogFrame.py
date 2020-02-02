@@ -18,7 +18,6 @@ md = open("NF - " + dirName + "\\README.md",'w')
 md.write("# " + dirName + " #\n\n")
 md.write("creation date:" + datetime.datetime.now().strftime("%Y-%m-%d %H: %M: %S") + "\n\n")
 md.write("tag:\n\n")
-md.write("[]()\n\n")
 
 md.close()
 
