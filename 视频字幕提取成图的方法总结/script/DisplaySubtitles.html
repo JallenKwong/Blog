@@ -1,0 +1,150 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+		<title>Display Subtitles</title>
+		<style type="text/css">
+		</style>
+		<script  src="Variables.js"></script>
+	</head>
+	
+	<body>
+		
+		<script type="text/javascript" >
+			var helper = {
+				itemName:aItemName,//Variables.js中定义
+				imgNameList:ImageNameList,//Variables.js中定义
+				imgSize:{width:1280,height:720},//resetImgSize()会进行修正
+				subtitleHeight:38,
+				imgList:[],
+				selectedList:[],
+				displayFlag:"NOT_SELECTED",//0.NOT_SELECTED, 1.SELECTED, 2.ALL
+				init:function(){//注意，注意，注意！！！要先init才能在window.onload画图
+
+					for(var i = 0; i < this.imgNameList.length ;i++){
+						var img = document.createElement("img")
+						img.setAttribute("src", this.imgNameList[i])
+						this.imgList.push(img)
+					}
+					
+					this.selectedList = this.getRecord()
+					
+				},
+				draw:function(parentElem){
+				
+					for(var i = 0; i < this.imgList.length ;i++){
+						var img = this.imgList[i]
+						var index = this.containImg(img.getAttribute('src'))
+						
+						if (this.displayFlag == "NOT_SELECTED" && index != -1){
+							continue
+						}else if(this.displayFlag == "SELECTED" && index == -1){
+							continue
+						}
+					
+						var canvas = document.createElement("canvas")
+					
+						var canvasWidth = this.imgSize.width, canvasHeight = this.subtitleHeight
+
+						canvas.setAttribute('id', img.getAttribute('src'))
+						canvas.setAttribute("width", canvasWidth)
+						canvas.setAttribute("height", canvasHeight)
+						canvas.style.border = "3px solid white"
+						
+						if(index > -1){
+							canvas.style.borderColor = "red"
+						}
+						
+						var ctx = canvas.getContext("2d")
+
+						parentElem.appendChild(canvas)
+						
+						ctx.drawImage(img, 0, this.imgSize.height - 1 - canvasHeight, canvasWidth, canvasHeight, 0, 0, canvasWidth, canvasHeight)
+						
+						var hobj = this
+						
+						canvas.addEventListener('click', function(){
+							var imgName = this.getAttribute('id')
+							var index = hobj.containImg(imgName)
+							//console.log(index)
+							if(index > -1){
+								//删除并去红边
+								console.log("Canceled " + imgName)
+								
+								hobj.selectedList.splice(index, 1)
+								document.getElementById(imgName).style.borderColor ="white"
+							}else{
+								//添加并加红边
+								console.log("Selected " + imgName)
+								
+								hobj.selectedList.push(imgName)
+								document.getElementById(imgName).style.borderColor ="red"
+							}
+							hobj.selectedList.sort()
+							//console.log(hobj.selectedList)
+							hobj.markdownRecord()
+						})
+					}
+				},
+				containImg:function(imgName){
+					for(var i = 0; i < this.selectedList.length; i++){
+						if(this.selectedList[i] == imgName) 
+							return i
+					}
+					return -1
+				},
+				markdownRecord:function(){
+				
+					var recordsJson = JSON.stringify(this.selectedList)
+					//将结果存入本地
+					localStorage.setItem(this.itemName, recordsJson)
+				},
+				clearRecord:function(){
+					localStorage.setItem(this.itemName, null)
+				},
+				getRecord:function(){
+					var item = localStorage.getItem(this.itemName)
+					
+					if(item != null){
+						var records = JSON.parse(item)
+						return records
+					}
+					return []
+				},
+				download:function(filename, text){
+
+					var element = document.createElement('a');
+					element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+					element.setAttribute('download', filename);
+
+					element.style.display = 'none';
+					document.body.appendChild(element);
+
+					element.click();
+
+					document.body.removeChild(element);
+				},
+				downloadSelectedList:function(){
+					var filename = 'PrepareToDelete' + Date.now() +'.txt'
+					var text = localStorage.getItem(this.itemName)
+					this.download(filename, text)
+				},
+				resetImgSize:function(){//该函数放在onload可用，在init()内不可用
+					this.imgSize.width = this.imgList[0].naturalWidth
+					this.imgSize.height = this.imgList[0].naturalHeight
+					console.log("Image size, width: " + this.imgSize.width + ", height: " + this.imgSize.height)
+				}
+			}
+		
+			helper.init()
+		</script>
+		
+		<script type="text/javascript">
+		
+			window.onload = function(){
+				helper.resetImgSize()
+				helper.draw(document.getElementsByTagName('body')[0])
+			}
+		</script>
+	</body>
+</html>

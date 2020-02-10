@@ -1,0 +1,408 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+		<title>Play Video</title>
+		<style type="text/css">
+			#screenshot, #clearall, #speedup, #slowdown{
+				color:white;
+				height:30px;
+				border:1px solid #1ab2ff;
+				margin:2px;
+				font-size: larger;
+				background-color:#1ab2ff;
+			}
+			
+			#subtitles{
+				height:350px;
+				overflow-x:hidden;
+				overflow-y:auto;
+				margin:2px;
+			}
+
+			#back{
+				color:white;
+				border:1px solid #1ab2ff;
+				margin:2px;
+				font-size: larger;
+				background-color:#1ab2ff;
+				position:absolute;
+				z-index:100;
+				height:200px;
+				display:none;
+			}
+
+		</style>
+		<script src="Variables.js"></script>
+	</head>
+	
+	<body>
+		<video id="video" style='margin:2px;'>
+				<source id="source" type="video/mp4">
+				Your browser does not support HTML5 video tag.
+		</video>
+	
+		<button id="slowdown">▲Slow Down</button>
+	
+		<div id="subtitles"></div>
+		
+		<button id="speedup">▼Speed Up</button>		
+		
+		<button id="screenshot">Screenshot</button>
+		
+		<button id="clearall">Clear All</button>
+		
+		<div id="afterscreenshot"></div>
+	
+		<button id="back">Back</button>
+	
+		<script>
+			var helper = {
+				developmentMode:false,//开发模式
+				developmentListNum:32,//控制数量可加快页面加载，方便开发
+				videoSrc:videoNameList[videoNameIndex],//videoNameIndex, videoNameList在Variables.js定义。注意，Variables.js通过ListFilename.py生成的。
+				subtitleHeight:32,
+				videoWidth:960,
+				imgSize:{width:1280,height:720},//resetImgSize()会进行修正
+				imgNameList:ImageNameList,//imgsrc的合集，ImageNameList在Variables.js定义
+				imgList:[],
+				stopScrollFlag:false,
+				mouseInSubtitlesFlag:false,
+				mouseOutOfSubtitlesFlag:false,
+				interval2num:{},//间隔id to 点击次数
+				intervalClicked:"",//先记录interval的id
+				intervalDefaultColor:"#666666",
+				intervalClickedColor:"red",
+				delta:0,//加速或减慢字幕滚动速度的数值
+				deltaMax:1500,
+				deltaMin:-1500,
+				step:100,//加速或减慢字幕滚动速度的单步数值
+				step2:0.5,//加减视频播放进度的单步数值
+				imgSuffix:".jpg",
+				offset:0,//字幕截图坐标向上位移量
+				init:function(){//注意！要先init才能在window.onload画图
+					console.log("Shortcut key:\nPlay rate: 1(0.5x) 2(0.75x) 3(1x) 4(1.25x) 5(1.5x)\nQ(Back the subtitles)     E(Slow subtitles down) R(Speed subtitles up)\nA(Put video backword) S(Screenshot) D(Put video forword)\n                                        C(Play/Pause video)")
+					
+					//list内容过多，拖慢页面加载速度
+					for(var i = 0; i < (this.developmentMode ? this.developmentListNum : this.imgNameList.length); i++){
+						var img = document.createElement("img")
+						img.setAttribute("src", this.imgNameList[i])
+						this.imgList.push(img)
+					}
+					document.getElementById("source").setAttribute("src", this.videoSrc)
+					
+					var videoWidth = this.videoWidth
+					document.querySelectorAll("#back, #video, #screenshot, #clearall, #subtitles, #speedup, #slowdown").forEach(function(item){
+						item.style.width = videoWidth + (item.id == 'back ' ? 50 : 0)  + "px"
+					})
+					
+					console.log("videoSrcLastTime: " + localStorage.getItem("videoSrcLastTime"))
+					console.log("videoPositionLastTime: " + localStorage.getItem("videoPositionLastTime"))
+					console.log("deltaLastTime: " + localStorage.getItem("deltaLastTime"))
+					if(!this.developmentMode && localStorage.getItem("videoSrcLastTime") == this.videoSrc
+						&& localStorage.getItem("videoPositionLastTime") != "0"){
+						if(confirm("Whether to return to the playback point?")){
+							document.getElementById("video").currentTime = parseFloat(localStorage.getItem("videoPositionLastTime"))
+							if(localStorage.getItem("deltaLastTime"))
+								this.delta = parseInt(localStorage.getItem("deltaLastTime"))
+						}
+					}
+				},
+				draw:function(){
+					var subtitles = document.getElementById("subtitles")
+					var hobj = this
+					
+					for(var i = 0; i < (this.developmentMode ? this.developmentListNum : this.imgNameList.length); i++){
+						var img = this.imgList[i]
+						var canvas = document.createElement("canvas")
+						var canvasWidth = this.videoWidth, canvasHeight = this.subtitleHeight
+						var scale = (this.videoWidth * 1.0 / this.imgSize.width)
+
+						canvas.setAttribute('id', img.getAttribute('src'))
+						canvas.setAttribute("width", canvasWidth)
+						canvas.setAttribute("height", canvasHeight * scale)	
+						canvas.style = "margin-top: 3px;"
+						
+						var ctx = canvas.getContext("2d")
+						ctx.scale(scale, scale);
+						ctx.drawImage(img, 0, this.imgSize.height - 1 - this.subtitleHeight - this.offset, this.imgSize.width, this.subtitleHeight, 
+											0, 0, this.imgSize.width, this.subtitleHeight)
+						
+						subtitles.appendChild(canvas)
+						
+						canvas.addEventListener("click",function(){
+							console.log(this.id + " is clicked.")
+						})
+						
+						//插入div间隔
+						if(i != 0 || i != (this.developmentMode ? this.developmentListNum : this.imgNameList.length) - 1){
+							var interval = document.createElement("div")
+							
+							interval.setAttribute('id', img.getAttribute('src') + "_interval")
+							interval.setAttribute("style" ,"margin:1px;height:" + canvasHeight / 6 + "px;width:" + canvasWidth + "px;"
+								+ "border:1px solid " + this.intervalDefaultColor + ";background-color:" + this.intervalDefaultColor+ ";")
+							
+							subtitles.appendChild(interval)
+							
+							interval.addEventListener("click", function(){
+								
+								if(hobj.intervalClicked != ""){
+									hobj.interval2num[hobj.intervalClicked]--
+									var intervalClicked = document.getElementById(hobj.intervalClicked)
+									intervalClicked.style.backgroundColor = hobj.intervalDefaultColor
+									intervalClicked.style.borderColor = hobj.intervalDefaultColor
+								}
+								
+								//点击相同的interval两次，取消
+								if(hobj.intervalClicked == this.id){
+									hobj.intervalClicked = ""
+									return
+								}
+								
+								if(!hobj.interval2num[this.id]){
+									hobj.interval2num[this.id] = 0
+								}
+								hobj.interval2num[this.id]++
+								hobj.intervalClicked = this.id
+								console.log(this.id +" clicked times: " + hobj.interval2num[this.id])
+								this.style.backgroundColor = hobj.intervalClickedColor
+								this.style.borderColor = hobj.intervalClickedColor
+							})
+						}
+					}
+					
+				},
+				copy:function(str){//将文本复制到系统粘贴板
+					try{
+						if(document.queryCommandSupported('Copy')){
+							var text = document.createElement('textarea');
+							text.value = str
+							text.style.width = 1;
+							text.style.height = 1;
+							document.getElementsByTagName("body")[0].appendChild(text);
+							text.focus();
+							text.select();
+							text.setSelectionRange(0, text.value.length);
+							document.execCommand('Copy', false, null);
+							text.remove();
+							console.log("Copyed filename: '"+ str +"' to system's clipboard.");
+						}
+					}catch(e){
+						console.warn("Sorry, your browser can not support that copying anything to system's clipboard.");
+					}
+				},
+				saveVideoInfo:function(){
+					//保存上次播放点
+					var video = document.getElementById("video")
+					localStorage.setItem("videoSrcLastTime", this.videoSrc)
+					localStorage.setItem("videoPositionLastTime", video.currentTime)
+					localStorage.setItem("deltaLastTime", this.delta)
+					//alert("videoSrcLastTime: " + this.videoSrc + ", videoPositionLastTime: " + video.currentTime)
+				},
+				resetImgSize:function(){//该函数放在onload可用，在init()内不可用
+					this.imgSize.width = this.imgList[0].naturalWidth
+					this.imgSize.height = this.imgList[0].naturalHeight
+					console.log("Image size, width: " + this.imgSize.width + ", height: " + this.imgSize.height)
+				}
+			}
+			
+			helper.init()
+		</script>
+		
+		<script>
+			window.onload = function(){
+				helper.resetImgSize()
+				helper.draw()
+				
+				var video = document.getElementById("video")
+				console.log("Video Duration: " + video.duration)
+
+				var subtitles = document.getElementById("subtitles")
+				console.log("Subtitles ScrollHeight: " + subtitles.scrollHeight)
+				
+				var back = document.getElementById("back")
+				var screenshot = document.getElementById("screenshot")
+				
+				function resetSubtitlesScrollTop(){
+					subtitles.scrollTop = (video.currentTime * subtitles.scrollHeight / video.duration) + helper.delta
+				}
+				resetSubtitlesScrollTop()
+				
+				//视频播放同步滚动条
+				video.addEventListener("timeupdate", function(){
+					if (helper.stopScrollFlag) return
+					resetSubtitlesScrollTop()
+				})
+				
+				subtitles.addEventListener("mouseenter", function(){
+					helper.stopScrollFlag = true
+					helper.mouseInSubtitlesFlag = true;
+					helper.mouseOutOfSubtitlesFlag = false;
+				})
+				
+				subtitles.addEventListener("mouseleave", function(){
+					
+					helper.mouseInSubtitlesFlag = false;
+					helper.mouseOutOfSubtitlesFlag = true;
+					if (helper.mouseOutOfSubtitlesFlag)
+						setTimeout(function(){
+						//防止鼠标在限时出了又重新进入
+						if (helper.mouseOutOfSubtitlesFlag)
+							helper.stopScrollFlag = false
+					
+					}, 1000);
+				})
+				
+				screenshot.addEventListener("click", function(){
+					if(helper.intervalClicked == ""){
+						alert("Please click firstly the interval you want!")
+						return
+					}
+					if(!video.paused) video.pause()
+					
+					var canvas = document.createElement("canvas")
+					
+					//例：03_20191203_012833.944.jpg_interval_1
+					canvas.id = helper.intervalClicked + "_" + helper.interval2num[helper.intervalClicked]
+					canvas.width = helper.imgSize.width
+					canvas.height = helper.imgSize.height
+					var ctx = canvas.getContext('2d')
+
+					ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+					
+					var elem = document.getElementById('afterscreenshot')
+					elem.insertBefore(canvas, elem.childNodes[0])
+					
+					var interval = document.getElementById(helper.intervalClicked)
+					
+					interval.style.backgroundColor = helper.intervalDefaultColor
+					interval.style.borderColor = helper.intervalDefaultColor
+					helper.intervalClicked = ""
+					document.documentElement.scrollTop = canvas.offsetTop
+					canvas.focus()
+
+					//将预先设定好的文件名复制到系统粘贴板
+					canvas.addEventListener("contextmenu", function(){
+						var name = this.id.split(helper.imgSuffix)
+						var t = this.id.split("_")
+						helper.copy(name[0] + "_" + t[t.length - 1] + helper.imgSuffix)
+						
+						//添加这句，是因为右击canvas时，浏览器会无故跳到页尾
+						document.documentElement.scrollTop = this.offsetTop
+					})
+					
+					//双击，移除canvas
+					canvas.addEventListener("dblclick", function(){
+						console.log("Canvas:" + this.id + " is deleted.")
+						this.remove()
+					})
+					
+					back.style.display = "inline"
+					back.style.top = canvas.offsetTop + "px"
+					back.style.left = canvas.offsetLeft + "px"
+					
+					console.log("Screenshot OK!")
+				})
+				
+				//一键删除
+				document.getElementById("clearall").addEventListener("click", function(){
+					if(confirm("Are you sure all screenshot canvas would be deleted?"))
+						document.getElementById('afterscreenshot').innerHTML = ''
+				})
+				
+				var speedup = document.getElementById("speedup")
+				speedup.addEventListener("click", function(){
+					if(helper.delta < helper.deltaMax){
+						helper.delta += helper.step
+						resetSubtitlesScrollTop()
+					}
+					console.log("Speed up subtitles. Delta: " + helper.delta)
+				})
+				
+				var slowdown = document.getElementById("slowdown")
+				slowdown.addEventListener("click", function(){
+					if(helper.delta > helper.deltaMin){
+						helper.delta -= helper.step
+						resetSubtitlesScrollTop()
+					}
+					console.log("Slow down subtitles. Delta: " + helper.delta)
+				})
+				
+				//添加键盘监听
+				document.addEventListener('keydown', function(event){
+					var keycode = event.keyCode;
+					//console.log("keycode: " + keycode)
+
+					//C:暂停or播放
+					if (keycode == 67){
+						console.log("C Key is pressed. The video will " + (video.paused ? "play.":"pause."))
+						event.preventDefault();
+						video.paused?video.play():video.pause()
+					}
+					
+					//A:视频上一刻
+					if (keycode == 65){
+						event.preventDefault();
+						video.pause()
+						video.currentTime -= helper.step2
+						console.log("A Key is pressed for getting video backward. Video currentTime: " + video.currentTime)
+					}
+					
+					//D:视频下一刻
+					if (keycode == 68){
+						event.preventDefault();
+						video.pause()
+						video.currentTime += helper.step2
+						console.log("D Key is pressed getting video forward. Video currentTime: " + video.currentTime)
+					}
+					
+					//S:截图
+					if (keycode == 83){
+						event.preventDefault();
+						video.pause()
+						screenshot.click()
+					}
+					
+					//Q:返回
+					if(keycode == 81){
+						event.preventDefault();
+						if(back.style.display != "none")
+							back.click()
+					}
+					
+					//E:上移字幕区
+					if(keycode == 69){
+						event.preventDefault();
+						slowdown.click()
+					}
+					
+					//R:下移字幕区
+					if(keycode == 82){
+						event.preventDefault();
+						speedup.click()
+					}
+					
+					//设置视频播放速度，1 ~ 5按键分别对应 0.5 ~ 1.5，公差为 0.25
+					if(49 <= keycode && keycode <= 53){
+						video.playbackRate = 0.5 + (0.25 * (keycode - 49))
+						console.log("Set the playback speed of the video: " + video.playbackRate)
+					}
+					
+				})
+				
+				back.addEventListener("click", function(){
+					//跳到字幕区略上的位置
+					console.log("Back.")
+					document.documentElement.scrollTop = subtitles.offsetTop - 200
+					this.style.display = "none"
+					//这里可以考虑删除screenshot的canvas
+				})
+			}
+			
+			window.onbeforeunload = function(){
+				helper.saveVideoInfo()
+			}
+			
+		</script>
+	</body>
+</html> 
