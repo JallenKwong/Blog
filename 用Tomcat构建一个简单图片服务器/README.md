@@ -10,7 +10,7 @@ tag:Tomcat,servlet
 
 ## 方法一：修改配置文件 ##
 
-`TOMCAT_HOME/conf/server.xml`配置文件内的`<Host>`内添加一子标签：
+在`TOMCAT_HOME/conf/server.xml`配置文件内的`<Host>`内添加一子标签：
 
 ```xml
 <Context docBase="C:\exambase\" path="/img"/>
@@ -20,7 +20,7 @@ tag:Tomcat,servlet
 
 ## 方法二：添加Servlet ##
 
-新建一应用，然后添加如下的Servlet，然后部署应用启动Tomcat
+新建一应用，然后添加如下的Servlet，然后部署应用并启动Tomcat。
 
 ```java
 package com.lun.servlet;

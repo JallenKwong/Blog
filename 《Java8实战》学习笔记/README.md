@@ -6,6 +6,8 @@ tag:Java
 
 # Java8实战 #
 
+![](image/01.png)
+
 ## 第一部分 基础知识 ##
 
 [1.](#1)[为什么要关心Java8](https://github.com/JallenKwong/LearnJava8/tree/master/src/main/java/com/lun/c01)
