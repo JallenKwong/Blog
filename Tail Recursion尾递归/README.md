@@ -1,4 +1,4 @@
-# Tail Recursion尾递归 #
+# Tail Recursion 尾递归 #
 
 creation date:2020-03-15 17: 05: 56
 
@@ -151,5 +151,5 @@ public void testTailRecursionFibonacci() {
 ## 参考资料 ##
 
 1. [What is tail recursion?](https://stackoverflow.com/questions/33923/what-is-tail-recursion)
-2. [斐波那契数列](https://baike.baidu.com/item/斐波那契数列/99145?fr=aladdin)
+2. [斐波那契数列](https://baike.baidu.com/item/斐波那契数列/99145)
 
